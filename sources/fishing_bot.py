@@ -14,11 +14,11 @@ import random
 
 class FishermanBot:
     def __init__(self, bobber, bar, region=None, settings_file='settings.ini'):
-        # Inicialização do bot com configurações básicas
-        # bobber: imagem da boia de pesca
-        # bar: imagem da barra do minigame
-        # region: região da tela para captura
-        # settings_file: arquivo de configurações
+        # Initialization of the bot with basic settings
+        # bobber: image of the fishing bobber
+        # bar: image of the minigame bar
+        # region: screen area for capture
+        # settings_file: settings file
         
         self.bobber = bobber
         self.bar = bar
@@ -27,39 +27,39 @@ class FishermanBot:
         self.parser = configparser.ConfigParser()
         self.parser.read(self.settings_file)
 
-        # Carrega configurações do arquivo .ini
+        # Load settings from the .ini file
         self.debug_mode = self.parser.getboolean('Settings', 'debug')
         self.max_volume = self.parser.getint('Settings', 'Volume_Threshold')
         self.detection_threshold = self.parser.getfloat('Settings', 'detection_threshold')
 
-        # Define área de rastreamento na tela
+        # Define tracking area on the screen
         screen_area = self.parser.get('Settings', 'tracking_zone').strip('()')
         cordies = screen_area.split(',')
         self.screen_area = tuple(map(int, cordies))
 
-        # Variáveis de estado do bot
-        self.coords = []  # Coordenadas dos pontos de pesca
-        self.total = 0    # Volume total do áudio
-        self.STATE = "IDLE"  # Estado atual do bot
-        self.stop_button = False  # Controle de parada
-        self.state_left = win32api.GetKeyState(0x01)  # Estado do botão esquerdo do mouse
-        self.state_right = win32api.GetKeyState(0x02) # Estado do botão direito do mouse
-        self.fish_count = 0      # Contador de peixes pescados
-        self.bait_counter = 0    # Contador de iscas usadas
-        self.food_timer = 0      # Temporizador para comer
-        self.minigame_counter = 0  # Contador de minigames
-        self.bait_item_coords = None  # Coordenadas do item de isca
-        self.use_button_coords = None  # Coordenadas do botão de usar
-        self.bait_amount = self.parser.getint('Settings', 'bait_amount')  # Quantidade de iscas
-        self.bait_counter = 0  # Contador de iscas usadas
-        self.last_minigame_time = time.time()  # Armazena o tempo da última entrada no minigame
-        self.check_interval = 600  # 10 minutos em segundos
-        self.use_bait_boolean = True # Verifica quer usar iscas ou não
-        # Inicializa captura da janela do Albion
+        # Bot state variables
+        self.coords = []  # Coordinates of fishing spots
+        self.total = 0    # Total audio volume
+        self.STATE = "IDLE"  # Current state of the bot
+        self.stop_button = False  # Stop control
+        self.state_left = win32api.GetKeyState(0x01)  # State of the left mouse button
+        self.state_right = win32api.GetKeyState(0x02) # State of the right mouse button
+        self.fish_count = 0      # Count of caught fish
+        self.bait_counter = 0    # Count of baits used
+        self.food_timer = 0      # Timer for eating
+        self.minigame_counter = 0  # Minigame counter
+        self.bait_item_coords = None  # Coordinates of the bait item
+        self.use_button_coords = None  # Coordinates of the use button
+        self.bait_amount = self.parser.getint('Settings', 'bait_amount')  # Amount of baits
+        self.bait_counter = 0  # Count of baits used
+        self.last_minigame_time = time.time()  # Stores the time of the last minigame entry
+        self.check_interval = 600  # 10 minutes in seconds
+        self.use_bait_boolean = True # Checks whether to use baits or not
+        # Initializes window capture for Albion
         self.wincap = WindowCapture('Albion Online Client')
 
     def check_volume(self):
-        # Monitora o volume do áudio para detectar quando um peixe morde a isca
+        # Monitors audio volume to detect when a fish bites the bait
         p = pyaudio.PyAudio()
         stream = p.open(format=pyaudio.paInt16, channels=2, rate=44100, input=True, frames_per_buffer=1024)
         while not self.stop_button:
@@ -68,29 +68,27 @@ class FishermanBot:
                 data = stream.read(1024)
                 reading = audioop.max(data, 2)
                 self.total += reading
-                if self.total > self.max_volume and self.STATE not in ["MINIGAME", "DELAY", "LANCANDO", "COMENDO", "ISCA"]:
+                if self.total > self.max_volume and self.STATE not in ["MINIGAME", "DELAY", "CASTING", "EATING", "BAIT"]:
                     self.do_minigame()
 
     def get_new_spot(self):
-        # Seleciona aleatoriamente um novo ponto de pesca
+        # Randomly selects a new fishing spot
         return random.choice(self.coords)
 
-
-
     def cast_hook(self):
-        # Função para lançar a linha de pesca
-        # Gerencia o ciclo de lançamento e espera
+        # Function to cast the fishing line
+        # Manages the casting and waiting cycle
         while not self.stop_button:
-            if self.STATE in ["LANCANDO", "INICIADO"]:
+            if self.STATE in ["CASTING", "STARTED"]:
                 time.sleep(random.uniform(1.2, 3.0))
-                if self.fish_count % 10 == 0 and self.use_bait_boolean == True :  # A cada 10 peixes, usa isca
-                    # Verifica se há iscas suficientes antes de usar
-                    if self.bait_counter < self.bait_amound:
-                        self.log_info("Sem iscas suficientes para usar.")
+                if self.fish_count % 10 == 0 and self.use_bait_boolean == True:  # Every 10 fish, use bait
+                    # Checks if there are enough baits before using
+                    if self.bait_counter < self.bait_amount:
+                        self.log_info("Not enough baits to use.")
                     else:
-                        self.use_bait()  # Chama a função para usar iscas
+                        self.use_bait()  # Calls the function to use baits
                         time.sleep(0.2)
-                # Processo de lançamento da linha
+                # Process of casting the line
                 pyautogui.mouseUp()
                 x, y = self.get_new_spot()
                 pyautogui.moveTo(x, y, tween=pyautogui.linear, duration=0.2)
@@ -100,124 +98,118 @@ class FishermanBot:
                 pyautogui.mouseUp()
                 self.log_info(f"STATE {self.STATE}")
                 time.sleep(2.5)
-                self.STATE = "LANCAR"
-            elif self.STATE == "LANCAR":
+                self.STATE = "CAST"
+            elif self.STATE == "CAST":
                 time.sleep(20)
-                if self.STATE == "LANCAR":
-                    self.log_info("Parece estar preso no lançamento. Relançando.")
+                if self.STATE == "CAST":
+                    self.log_info("Seems to be stuck on cast. Recasting.")
                     pyautogui.press('s')
-                    self.STATE = "LANCANDO"
+                    self.STATE = "CASTING"
 
     def eat_food(self):
-        # Função para gerenciar o consumo de comida
-        # Executa a cada 30 minutos (1800 segundos)
+        # Function to manage food consumption
+        # Executes every 30 minutes (1800 seconds)
         while not self.stop_button:
             time.sleep(1800)
-            self.STATE = "COMENDO"
-            if self.STATE == "COMENDO":
+            self.STATE = "EATING"
+            if self.STATE == "EATING":
                 self.log_info("EATING FOOD")
                 pyautogui.press('2')
-                self.STATE = "LANCANDO"
+                self.STATE = "CASTING"
 
     def use_bait(self):
-        
         """
-        Função para usar iscas no jogo.
-        Abre o menu, seleciona o primeiro item e clica no botão de usar.
+        Function to use baits in the game.
+        Opens the menu, selects the first item, and clicks the use button.
         """
-        self.STATE = "ISCA"  # Muda o estado para "ISCA" (usando isca)
-        self.log_info(f"STATE {self.STATE}")  # Registra o estado atual no log
+        self.STATE = "BAIT"  # Changes state to "BAIT" (using bait)
+        self.log_info(f"STATE {self.STATE}")  # Logs the current state
 
-        if self.bait_counter >= self.bait_amound:
-            self.log_info("Sem iscas suficientes para usar.")
-            self.STATE = "LANCANDO"  # Muda o estado para "LANCANDO" (lançando)
+        if self.bait_counter >= self.bait_amount:
+            self.log_info("Not enough baits to use.")
+            self.STATE = "CASTING"  # Changes state to "CASTING" (casting)
             return
 
-       
-        # Seleciona o item de isca
+        # Selects the bait item
         if self.bait_item_coords:
-            pyautogui.press('i')  # Exemplo: 'i' para inventário
-            time.sleep(0.5)  # Aguarda o menu abrir
+            pyautogui.press('i')  # Example: 'i' for inventory
+            time.sleep(0.5)  # Waits for the menu to open
             pyautogui.moveTo(self.bait_item_coords[0], self.bait_item_coords[1], duration=0.2)
             pyautogui.click()
-            time.sleep(0.5)  # Aguarda a seleção
+            time.sleep(0.5)  # Waits for selection
             
-            
-        # Clica no botão de usar
+        # Clicks the use button
         if self.use_button_coords:
             pyautogui.moveTo(self.use_button_coords[0], self.use_button_coords[1])
             pyautogui.click()
-            time.sleep(0.2)  # Aguarda a ação ser concluída
-            self.bait_counter += 1  # Incrementa o contador de iscas usadas
-            self.log_info(f"isca usada, restam {self.bait_amount - self.bait_counter}")
+            time.sleep(0.2)  # Waits for the action to complete
+            self.bait_counter += 1  # Increments the count of used baits
+            self.log_info(f"Bait used, {self.bait_amount - self.bait_counter} remaining")
 
-        # Fecha o menu
-        pyautogui.press('i')  # Exemplo: 'i' para inventário
-        time.sleep(0.2)  # Aguarda o menu fechar
-        pyautogui.press('s')  # interrompe todas as ações
-        self.STATE = "LANCANDO"  # Muda o estado para "LANCANDO" (lançando)
+        # Closes the menu
+        pyautogui.press('i')  # Example: 'i' for inventory
+        time.sleep(0.2)  # Waits for the menu to close
+        pyautogui.press('s')  # Stops all actions
+        self.STATE = "CASTING"  # Changes state to "CASTING" (casting)
 
     def do_minigame(self):
-        # Executa o minigame de pesca quando um peixe é fisgado
-        # Controla o mouse baseado na posição da boia
+        # Executes the fishing minigame when a fish is hooked
+        # Controls the mouse based on the position of the bobber
 
-        # Verifica se o bot não está em estados de lançamento, iniciado ou comendo
-        if self.STATE not in ["LANCANDO", "INICIADO", "COMENDO", " ISCA"]:
-            self.STATE = "MINIGAME"  # Muda o estado para "MINIGAME" (resolvendo)
-            self.log_info(f"STATE {self.STATE}")  # Registra o estado atual no log
-            pyautogui.mouseDown()  # Simula o pressionamento do botão do mouse
-            pyautogui.mouseUp()    # Simula o soltar do botão do mouse
-            time.sleep(0.2)        # Aguarda 200 milissegundos para estabilizar
+        # Checks if the bot is not in casting, started, eating, or bait states
+        if self.STATE not in ["CASTING", "STARTED", "EATING", "BAIT"]:
+            self.STATE = "MINIGAME"  # Changes state to "MINIGAME" (solving)
+            self.log_info(f"STATE {self.STATE}")  # Logs the current state
+            pyautogui.mouseDown()  # Simulates pressing the mouse button
+            pyautogui.mouseUp()    # Simulates releasing the mouse button
+            time.sleep(0.2)        # Waits 200 milliseconds to stabilize
 
-            # Chama a função detect_bobber para verificar a posição da boia
+            # Calls the detect_bobber function to check the position of the bobber
             valid, location, size = self.detect_bobber()
             
-            # Se a boia for detectada com sucesso
+            # If the bobber is successfully detected
             if valid == True:
-                self.last_minigame_time = time.time()  # Atualiza o timestamp
-                self.fish_count += 1  # Incrementa o contador de peixes pescados
-               
+                self.last_minigame_time = time.time()  # Updates the timestamp
+                self.fish_count += 1  # Increments the count of caught fish
                 
-                while True:  # Loop contínuo para monitorar a boia
-                    valid, location, size = self.detect_bobber()  # Verifica novamente a boia
+                while True:  # Continuous loop to monitor the bobber
+                    valid, location, size = self.detect_bobber()  # Checks the bobber again
                     
                     # min_limit = int(size[1] * 0.3)
                     # max_limit = int(size[1] * 0.7)
 
-                    # Se a boia ainda for válida
+                    # If the bobber is still valid
                     if valid == True:
-                        # Se a posição da boia estiver na metade esquerda da barra
+                        # If the position of the bobber is in the left half of the bar
                         if location <= int(size[1] / 2):
-                            pyautogui.mouseDown()  # Pressiona o botão do mouse (captura)
-                        # Se a posição da boia estiver na metade direita da barra
+                            pyautogui.mouseDown()  # Presses the mouse button (captures)
+                        # If the position of the bobber is in the right half of the bar
                         elif location >= int(size[1] / 2):
-                            pyautogui.mouseUp()  # Solta o botão do mouse (libera)
+                            pyautogui.mouseUp()  # Releases the mouse button (releases)
                     else:
-                        # Se a boia não for mais detectada e não estiver em estado de lançamento
-                        if self.STATE != "LANCANDO":
-                            self.STATE = "LANCANDO"  # Muda o estado para "LANCANDO"
-                            time.sleep(0.3) # Aguarda 300 milissegundos
-                            pyautogui.mouseUp()  # Solta o botão do mouse
-                            break  # Sai do loop
+                        # If the bobber is no longer detected and is not in casting state
+                        if self.STATE != "CASTING":
+                            self.STATE = "CASTING"  # Changes state to "CASTING"
+                            time.sleep(0.3) # Waits 300 milliseconds
+                            pyautogui.mouseUp()  # Releases the mouse button
+                            break  # Exits the loop
             else:
-                self.STATE = "LANCANDO"  # Se a boia não for detectada, muda o estado para "LANCANDO"
+                self.STATE = "CASTING"  # If the bobber is not detected, changes state to "CASTING"
     
     def monitor_bot(self):
         """
-        Monitora o comportamento do bot e para se necessário.
+        Monitors the bot's behavior and stops if necessary.
         """
         while not self.stop_button:
             current_time = time.time()
             if current_time - self.last_minigame_time > self.check_interval:
-                self.log_info("O bot não entrou no minigame em 10 minutos. Parando o bot.")
-                self.stop_bot()  # Chama a função para parar o bot
-            time.sleep(60)  # Verifica a cada 60 segundos
-
-
+                self.log_info("The bot has not entered the minigame in 10 minutes. Stopping the bot.")
+                self.stop_bot()  # Calls the function to stop the bot
+            time.sleep(60)  # Checks every 60 seconds
 
     def generate_coords(self):
-        # Gera coordenadas para pontos de pesca
-        # Usuário define os pontos pressionando espaço
+        # Generates coordinates for fishing spots
+        # User defines the spots by pressing space
         amount_of_coords = dpg.get_value("Amount Of Spots")
         if amount_of_coords == 0:
             amount_of_coords = 1
@@ -233,8 +225,8 @@ class FishermanBot:
                 time.sleep(0.001)
 
     def grab_screen(self):
-        # Define a área de rastreamento na tela
-        # Usuário seleciona dois pontos para definir a região
+        # Defines the tracking area on the screen
+        # User selects two points to define the region
         image_coords = []
         while True:
             if win32api.GetKeyState(0x20) < 0:
@@ -245,48 +237,44 @@ class FishermanBot:
             time.sleep(0.001)
         start_point, end_point = image_coords
         self.screen_area = start_point[0], start_point[1], end_point[0], end_point[1]
-        self.log_info(f"área atualizada {self.screen_area}")
+        self.log_info(f"Updated area {self.screen_area}")
 
     def detect_minigame(self, screenshot, bar):
-        # Detecta se o minigame está ativo
-        # Usa template matching para encontrar a barra do minigame
+        # Detects if the minigame is active
+        # Uses template matching to find the minigame bar
         result = cv2.matchTemplate(screenshot, bar, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, _ = cv2.minMaxLoc(result)
         if max_val >= self.detection_threshold:
             return True
         return False
 
-    
     def set_bait_item_coords(self):
         """
-        Permite ao usuário definir as coordenadas do item de isca.
+        Allows the user to set the coordinates of the bait item.
         """
-        self.log_info("Pressione Espaço sobre o item de isca.")
+        self.log_info("Press Space over the bait item.")
         while True:
-            if win32api.GetKeyState(0x20) < 0:  # 0x20 é a tecla espaço
+            if win32api.GetKeyState(0x20) < 0:  # 0x20 is the space key
                 self.bait_item_coords = pyautogui.position()
-                self.log_info(f"Coordenadas do item de isca salvas: {self.bait_item_coords}")
+                self.log_info(f"Bait item coordinates saved: {self.bait_item_coords}")
                 break
             time.sleep(0.001)
 
     def set_use_button_coords(self):
         """
-        Permite ao usuário definir as coordenadas do botão de usar.
+        Allows the user to set the coordinates of the use button.
         """
-        self.log_info("Pressione Espaço sobre o botão de usar.")
+        self.log_info("Press Space over the use button.")
         while True:
-            if win32api.GetKeyState(0x20) < 0:  # 0x20 é a tecla espaço
+            if win32api.GetKeyState(0x20) < 0:  # 0x20 is the space key
                 self.use_button_coords = pyautogui.position()
-                self.log_info(f"Coordenadas do botão de usar salvas: {self.use_button_coords}")
+                self.log_info(f"Use button coordinates saved: {self.use_button_coords}")
                 break
             time.sleep(0.001)
 
-
-
-
     def detect_bobber(self):
-        # Detecta a posição da boia na tela
-        # Retorna se é válido, localização e tamanho
+        # Detects the position of the bobber on the screen
+        # Returns if valid, location, and size
         screenshot = self.wincap.get_screenshot(region=self.region)
         screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
         bobber = cv2.imread(self.bobber)
@@ -296,24 +284,24 @@ class FishermanBot:
         return [self.detect_minigame(screenshot, bar), max_loc[0] + bobber.shape[1] // 2, screenshot.shape]
     
     def log_info(self, message):
-        # Função para logging de mensagens na interface
+        # Function for logging messages in the interface
         current_logs = dpg.get_value("LogWindow")
         updated_logs = f"{current_logs}\n{message}" if current_logs else message
         dpg.set_value("LogWindow", updated_logs)
 
     def save_settings(self):
-        # Salva as configurações no arquivo .ini
+        # Saves the settings in the .ini file
         with open(self.settings_file, 'w') as configfile:
             self.parser.set('Settings', 'Volume_Threshold', str(self.max_volume))
             self.parser.set('Settings', 'tracking_zone', str(self.screen_area))
             self.parser.set('Settings', 'detection_threshold', str(self.detection_threshold))
-            self.parser.set('Settings', 'bait_amount', str(self.bait_amound))
+            self.parser.set('Settings', 'bait_amount', str(self.bait_amount))
             self.parser.set('Settings', 'use_bait_boolean', str(self.use_bait_boolean))
             self.parser.write(configfile)
         self.log_info("Saved New Settings to settings.ini")
 
     def start_bot(self):
-        # Inicia o bot e suas threads
+        # Starts the bot and its threads
         self.log_info("Bot started successfully.")
         self.stop_button = False
         time.sleep(3)
@@ -323,22 +311,22 @@ class FishermanBot:
         time.sleep(2)
         pyautogui.press('s')
         time.sleep(2)
-        self.STATE = "INICIADO"
+        self.STATE = "STARTED"
 
     def stop_bot(self):
-        # Para a execução do bot
+        # Stops the execution of the bot
         self.log_info("Bot stopped.")
         self.stop_button = True
         self.STATE = "STOPPED"
 
     def update_use_bait_boolean(self, sender, app_data):
         """
-        Atualiza a variável use_bait_boolean com o valor do checkbox.
+        Updates the use_bait_boolean variable with the value from the checkbox.
         """
-        self.use_bait_boolean = app_data  # app_data será True ou False
+        self.use_bait_boolean = app_data  # app_data will be True or False
         self.log_info(f"Bait boolean set to: {self.use_bait_boolean}")
 
-        # Mostra ou oculta os botões de coordenadas do item e uso da isca
+        # Shows or hides the buttons for bait item and use coordinates
         if self.use_bait_boolean:
             dpg.show_item("bait_use")
             # dpg.show_item(self.set_bait_amount)
@@ -352,18 +340,16 @@ class FishermanBot:
             # dpg.hide_item(self.bait_item_button)
             # dpg.hide_item(self.use_button_button)
 
-
-
     def init_gui(self):
         """
-        Inicializa a interface gráfica com todos os controles.
+        Initializes the graphical interface with all controls.
         """
         dpg.create_context()
         dpg.create_viewport(title="Fisherman", width=700, height=500)
 
         with dpg.window(label="Fisherman Window", width=684, height=460):
             with dpg.group():
-                # Controles da interface
+                # Interface controls
                 dpg.add_input_int(label="Amount Of Spots", tag="Amount Of Spots", 
                                   max_value=10, min_value=1, default_value=1, width=120)
                 dpg.add_input_int(label="Set Volume Threshold", tag="Set Volume Threshold", 
@@ -371,35 +357,28 @@ class FishermanBot:
                 dpg.add_input_float(label="Set Detection Threshold", tag="Set Detection Threshold", 
                                     min_value=0.1, max_value=1.0, default_value=self.detection_threshold, width=120)
                 
-                
-                
             with dpg.group(tag="baits", horizontal=True):
-
                 with dpg.child_window(tag="bait", width=520, height=150):
-                    
                     dpg.add_checkbox(label="Use Bait", default_value=self.use_bait_boolean, callback=self.update_use_bait_boolean)
                     with dpg.child_window(tag="bait_use", width=400, height=100):
                         self.set_bait_amount = dpg.add_input_int(label="Set Bait Amount", width=80, max_value=100, min_value=0, default_value=self.bait_amount)
                         self.bait_item_button = dpg.add_button(label="Set Bait Item Location", callback=self.set_bait_item_coords)
                         self.use_button_button = dpg.add_button(label="Set Use Button Location", callback=self.set_use_button_coords)
 
-
-            # Botões de controle
+            # Control buttons
             dpg.add_button(label="Set Fishing Spots", callback=self.generate_coords)
             dpg.add_button(label="Set Tracking Zone", callback=self.grab_screen)
             dpg.add_button(label="Start Bot", callback=self.start_bot)
             dpg.add_button(label="Stop Bot", callback=self.stop_bot)
             dpg.add_button(label="Save Settings", callback=self.save_settings)
 
-            
-
-            # Área de logs
+            # Log area
             dpg.add_text("Log Messages:")
             dpg.add_input_text(multiline=True, readonly=True, 
                                width=650, height=150, tag="LogWindow", 
                                default_value="")
 
-        # Inicializa a interface
+        # Initializes the interface
         dpg.setup_dearpygui()
         dpg.show_viewport()
         dpg.start_dearpygui()
