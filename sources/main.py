@@ -11,7 +11,7 @@ def debug():
     from time import time
     loop_time = time()
     while True:
-        screenshot = wincap.get_screenshot(region=(423, 371, 180, 51))
+        screenshot = wincap.get_screenshot(region=(690, 440, 215, 55))
         screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR)
         screenshot = screenshot.astype(np.uint8)
         rectangles = vision.find(screenshot, 0.7)
@@ -24,7 +24,8 @@ def debug():
             break
 
 if __name__ == "__main__":
-    bot = FishermanBot('./bobber_2.png', './empty_bar_2.png', (690, 440, 210, 55))
+    bot = FishermanBot('./bobber_2.png', './empty_bar_2.png', (690, 440, 215, 55))
+    # threading.Thread(target=debug).start()
     bot.init_gui()
     
     
